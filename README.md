@@ -1,3 +1,3 @@
 #PrefetchPy
 
-A simple python tool to parse prefetch files
+A simple python tool to parse Windows prefetch files
