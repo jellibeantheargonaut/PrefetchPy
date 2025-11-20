@@ -68,5 +68,27 @@ def main():
         for f in pf.filenames:
             print(f)
 
+    if args.timeline:
+        if not args.d:
+            print("Please provide a directory path with -d to use the --timeline option.")
+            sys.exit(1)
+        
+        ### print the applications run count and sort them by last run time
+        timeline = []
+        for filename in os.listdir(args.d):
+            if filename.endswith(".pf"):
+                pf = pyscca.open(os.path.join(args.d, filename))
+                timeline.append((pf.get_executable_filename(), pf.get_last_run_time(1), pf.get_run_count()))
+        # sort by last run time
+        timeline.sort(key=lambda x: x[1], reverse=True)
+        print("Timeline of Executions:",end="\n\n")
+        for entry in timeline:
+
+            ## this is a bit clunky but formats the last run time nicely
+            formatted_time = entry[1].strftime("%Y-%m-%d %H:%M:%S") if entry[1] else "N/A"
+
+            ## print all the details in equitable spacing
+            print(f"File: {entry[0]:<30} Last Run: {formatted_time:<20} Run Count: {entry[2]:<5}")
+
 if __name__ == "__main__":
     main()
