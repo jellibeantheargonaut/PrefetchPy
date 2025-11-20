@@ -30,13 +30,17 @@ def main():
     parser.add_argument("-f","--file", help="Path to the prefetch file to parse")
     parser.add_argument("-d", help="Path to the directory containing prefetch files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument("-o", "--output", help="Output file to save the parsed data")
+    parser.add_argument("-o", "--output", help="Output file to export parsed data")
 
     ## Prefetch specific arguments
     # these flags do not take values; treat them as boolean switches
     parser.add_argument("--last-run", action="store_true", help="Show the last run time of the application")
     parser.add_argument("--run-count", action="store_true", help="Show the number of times the application has been run")
     parser.add_argument("--open-files", action="store_true", help="List files accessed by the application")
+
+    ## search option to search for a string in the filenames accessed by the different prefetch files
+    ## this will only work with the -d option
+    parser.add_argument("--search", type=str, help="Search for a string in the filenames accessed by prefetch files in the specified directory")
 
     ## directory specific arguments
     parser.add_argument("--timeline", action="store_true", help="List the timeline of executions")
@@ -89,6 +93,69 @@ def main():
 
             ## print all the details in equitable spacing
             print(f"File: {entry[0]:<30} Last Run: {formatted_time:<20} Run Count: {entry[2]:<5}")
+
+    if args.search:
+        if not args.d:
+            print("Please provide a directory path with -d to use the --search option.")
+            sys.exit(1)
+        
+        search_term = args.search.lower()
+        print(f"Searching for '{search_term}' in prefetch files in directory: {args.d}", end="\n\n")
+        for filename in os.listdir(args.d):
+            if filename.endswith(".pf"):
+                pf = pyscca.open(os.path.join(args.d, filename))
+                matched_files = [f for f in pf.filenames if search_term in f.lower()]
+                if matched_files:
+                    print(f"Executable File: {pf.get_executable_filename()}")
+                    for f in matched_files:
+                        print(f"  Matched File: {f}")
+                    print()
+
+    ### export option 
+    ### In csv format we will export the executable name, last run time and run count
+    ### In json format we will export all the parsed data
+    ### this will only work with the -d option
+    ### -o is required to specify the output file
+    ### csv format like: executable,last_run,run_count
+    ###  in json like { "executable": "name", "last_run": "time", "run_count": count, "files": [list of files] }
+    ### two kinds of json jsonl and json array for working with jq command line tool
+    if args.export:
+        if not args.d:
+            print("Please provide a directory path with -d to use the --export option.")
+            sys.exit(1)
+        if not args.output:
+            print("Please provide an output file with -o to export parsed data.")
+            sys.exit(1)
+
+        export_data = []
+        for filename in os.listdir(args.d):
+            if filename.endswith(".pf"):
+                pf = pyscca.open(os.path.join(args.d, filename))
+                if args.format == "csv":
+                    export_data.append(f"{pf.get_executable_filename()},{pf.get_last_run_time(1)},{pf.get_run_count()}")
+                elif args.format == "json":
+                    files_list = []
+                    for f in pf.filenames:
+                        files_list.append(str(f))
+                    data_entry = {
+                        "executable": pf.get_executable_filename(),
+                        "last_run": str(pf.get_last_run_time(1)),
+                        "run_count": pf.get_run_count(),
+                        "files": files_list
+                    }
+                    export_data.append(data_entry)
+                pf.close()
+
+        with open(args.output, "w") as out_file:
+            if args.format == "csv":
+                out_file.write("executable,last_run,run_count\n")
+                for line in export_data:
+                    out_file.write(line + "\n")
+            elif args.format == "json":
+                import json
+                json.dump(export_data, out_file, indent=4)
+
+        print(f"Exported parsed data to {args.output} in {args.format} format.")
 
 if __name__ == "__main__":
     main()
