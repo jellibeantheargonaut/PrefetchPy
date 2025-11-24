@@ -60,7 +60,7 @@ def main():
     ## Get last run time
     if args.last_run:
         pf = pyscca.open(args.file)
-        print("Last Run Time:", pf.get_last_run_time(-1))
+        print("Last Run Time:", pf.get_last_run_time(0))
 
     if args.run_count:
         pf = pyscca.open(args.file)
